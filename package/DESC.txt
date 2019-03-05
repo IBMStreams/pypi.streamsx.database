@@ -1,17 +1,20 @@
 Overview
 ========
 
-Provides functions to run SQL statements to a IBM Db2 Warehouse on Cloud.
-This package exposes the `com.ibm.streamsx.jdbc` toolkit as Python methods for services on IBM Cloud.
+Provides functions to run SQL statements to a database, for example IBM Db2 Warehouse.
 
-* `IBM Streaming Analytics <https://www.ibm.com/cloud/streaming-analytics>`_
+This package exposes the `com.ibm.streamsx.jdbc <https://ibmstreams.github.io/streamsx.jdbc/>`_ toolkit as Python methods for use with Streaming Analytics service on
+IBM Cloud and IBM Streams including IBM Cloud Private for Data.
+
+* `Streaming Analytics service <https://console.ng.bluemix.net/catalog/services/streaming-analytics>`_
+* `IBM Streams developer community <https://developer.ibm.com/streamsdev/>`_
 * `IBM Db2 Warehouse <https://www.ibm.com/cloud/db2-warehouse-on-cloud>`_
 
 
 Sample
 ======
 
-A simple hello world example of a Streams application that creates a table, inserts a row and deletes the table::
+A simple example of a Streams application that creates a table, inserts a row and deletes the table::
 
     from streamsx.topology.topology import *
     from streamsx.topology.schema import CommonSchema, StreamSchema
@@ -26,7 +29,8 @@ A simple hello world example of a Streams application that creates a table, inse
     res_sql = db.run_statement(s, credentials)
     res_sql.print()
     submit('STREAMING_ANALYTICS_SERVICE', topo)
-
+    # Use for IBM Streams including IBM Cloud Private for Data
+    # submit ('DISTRIBUTED', topo)
 
 Documentation
 =============

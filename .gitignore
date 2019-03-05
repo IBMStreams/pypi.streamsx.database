@@ -7,6 +7,7 @@ __pycache__/
 /**/job*.tar.gz
 /**/*tk*/
 /**/*tk*.zip
+/package/*.sab
 
 # C extensions
 *.so
@@ -107,3 +108,4 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+/.project

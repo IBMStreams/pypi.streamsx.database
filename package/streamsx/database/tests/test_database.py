@@ -19,13 +19,6 @@ import json
 ## Streaming analytics service running
 ## DB2 Warehouse service credentials are located in a file referenced by environment variable DB2_CREDENTIALS
 ##
-def toolkit_env_var():
-    result = True
-    try:
-        os.environ['STREAMS_JDBC_TOOLKIT']
-    except KeyError: 
-        result = False
-    return result
 
 def streams_install_env_var():
     result = True
@@ -50,42 +43,14 @@ class TestParams(unittest.TestCase):
 
 class TestDB(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(self):
-        # start streams service
-        connection = sr.StreamingAnalyticsConnection()
-        service = connection.get_streaming_analytics()
-        result = service.start_instance()
-
-    def setUp(self):
-        Tester.setup_streaming_analytics(self, force_remote_build=True)
-
     def test_string_type(self):
         creds_file = os.environ['DB2_CREDENTIALS']
         with open(creds_file) as data_file:
             credentials = json.load(data_file)
         topo = Topology('test_string_type')
 
-        sql_create = 'CREATE TABLE STR_SAMPLE (A CHAR(10), B CHAR(10))'
-        sql_insert = 'INSERT INTO STR_SAMPLE (A, B) VALUES (\'hello\', \'world\')'
-        sql_drop = 'DROP TABLE STR_SAMPLE'
-        s = topo.source([sql_create, sql_insert, sql_drop]).as_string()
-        res_sql = db.run_statement(s, credentials)
-        res_sql.print()
-        tester = Tester(topo)
-        tester.tuple_count(res_sql, 3)
-        #tester.run_for(60)
-        tester.test(self.test_ctxtype, self.test_config)
-
-    @unittest.skipIf(toolkit_env_var() == False, "Missing STREAMS_JDBC_TOOLKIT environment variable.")
-    def test_local_tk(self):
-        jdbc_toolkit = os.environ['STREAMS_JDBC_TOOLKIT']
-        creds_file = os.environ['DB2_CREDENTIALS']
-        with open(creds_file) as data_file:
-            credentials = json.load(data_file)
-        topo = Topology('test_local_tk')
-        # use toolkit applied with STREAMS_JDBC_TOOLKIT env var
-        streamsx.spl.toolkit.add_toolkit(topo, jdbc_toolkit)
+        if self.jdbc_toolkit_home is not None:
+            streamsx.spl.toolkit.add_toolkit(topo, self.jdbc_toolkit_home)
 
         sql_create = 'CREATE TABLE STR_SAMPLE (A CHAR(10), B CHAR(10))'
         sql_insert = 'INSERT INTO STR_SAMPLE (A, B) VALUES (\'hello\', \'world\')'
@@ -108,6 +73,9 @@ class TestDB(unittest.TestCase):
             credentials = json.load(data_file)
         topo = Topology('test_string_type_with_driver_param')
 
+        if self.jdbc_toolkit_home is not None:
+            streamsx.spl.toolkit.add_toolkit(topo, self.jdbc_toolkit_home)
+
         sql_create = 'CREATE TABLE STR_SAMPLE (A CHAR(10), B CHAR(10))'
         sql_insert = 'INSERT INTO STR_SAMPLE (A, B) VALUES (\'hello\', \'world\')'
         sql_drop = 'DROP TABLE STR_SAMPLE'
@@ -124,9 +92,11 @@ class TestDB(unittest.TestCase):
         creds_file = os.environ['DB2_CREDENTIALS']
         with open(creds_file) as data_file:
             credentials = json.load(data_file)
-        topo = Topology()
 
         topo = Topology('test_mixed_types')
+        if self.jdbc_toolkit_home is not None:
+            streamsx.spl.toolkit.add_toolkit(topo, self.jdbc_toolkit_home)
+
         pulse = op.Source(topo, "spl.utility::Beacon", 'tuple<rstring A, rstring B>', params = {'iterations':1})
         pulse.A = pulse.output('"hello"')
         pulse.B = pulse.output('"world"')
@@ -153,4 +123,35 @@ class TestDB(unittest.TestCase):
         tester.tuple_count(drop_table, 1)
         #tester.run_for(60)
         tester.test(self.test_ctxtype, self.test_config)
+
+class TestDistributed(TestDB):
+    def setUp(self):
+        Tester.setup_distributed(self)
+        self.jdbc_toolkit_home = os.environ["STREAMS_JDBC_TOOLKIT"]
+        # setup test config
+        self.test_config = {}
+        job_config = streamsx.topology.context.JobConfig(tracing='info')
+        job_config.add(self.test_config)
+        self.test_config[streamsx.topology.context.ConfigParams.SSL_VERIFY] = False  
+
+class TestStreamingAnalytics(TestDB):
+    def setUp(self):
+        Tester.setup_streaming_analytics(self, force_remote_build=False)
+        self.jdbc_toolkit_home = os.environ["STREAMS_JDBC_TOOLKIT"]
+
+    @classmethod
+    def setUpClass(self):
+        # start streams service
+        connection = sr.StreamingAnalyticsConnection()
+        service = connection.get_streaming_analytics()
+        result = service.start_instance()
+
+class TestStreamingAnalyticsRemote(TestStreamingAnalytics):
+    def setUp(self):
+        Tester.setup_streaming_analytics(self, force_remote_build=True)
+        self.jdbc_toolkit_home = None
+
+    @classmethod
+    def setUpClass(self):
+        super().setUpClass()
 
