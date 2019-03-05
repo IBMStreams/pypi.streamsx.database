@@ -8,11 +8,6 @@ Overview
 
 Provides functions to run SQL statements to a database.
 
-Use this package with the following services on IBM Cloud:
-
-  * `Streaming Analytics <https://www.ibm.com/cloud/streaming-analytics>`_
-  * `Db2 Warehouse <https://www.ibm.com/cloud/db2-warehouse-on-cloud>`_
-
 
 Credentials
 +++++++++++
@@ -30,7 +25,7 @@ The mandatory JSON elements are "username", "password" and "jdbcurl"::
 Sample
 ++++++
 
-A simple hello world example of a Streams application that creates a table, inserts a row and deletes the table::
+A simple example of a Streams application that creates a table, inserts a row and deletes the table::
 
     from streamsx.topology.topology import *
     from streamsx.topology.schema import CommonSchema, StreamSchema
@@ -45,11 +40,12 @@ A simple hello world example of a Streams application that creates a table, inse
     res_sql = db.run_statement(s, credentials)
     res_sql.print()
     submit('STREAMING_ANALYTICS_SERVICE', topo)
-
+    # Use for IBM Streams including IBM Cloud Private for Data
+    # submit ('DISTRIBUTED', topo, cfg)
 
 """
 
-__version__='1.0.0'
+__version__='1.0.1'
 
 __all__ = ['run_statement']
 from streamsx.database._database import run_statement
