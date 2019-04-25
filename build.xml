@@ -44,6 +44,24 @@
     </fail>
    </target>
 
+   <target name="test-icp-remote" depends="clean">
+    <exec executable="/bin/sh" 
+      outputproperty="toolkit.test.output" errorproperty="toolkit.test.error" resultproperty="toolkit.test.result"
+      dir="${package}">
+      <arg value="-c"/>
+      <arg value="unset STREAMS_INSTALL;python3 -u -m unittest streamsx.database.tests.test_database.TestDistributedRemote"/>
+    </exec>
+    <echo message="${toolkit.test.output}" if:set="toolkit.test.output"/>
+    <echo message="${toolkit.test.error}" if:set="toolkit.test.error"/>
+    <fail message="The test failed - result ${toolkit.test.result}.">
+      <condition>
+        <not>
+          <equals arg1="${toolkit.test.result}" arg2="0"/>
+        </not>
+      </condition>
+    </fail>
+   </target>
+
    <target name="test-sas" depends="clean">
     <exec executable="/bin/sh" 
       outputproperty="toolkit.test.output" errorproperty="toolkit.test.error" resultproperty="toolkit.test.result"

@@ -134,6 +134,16 @@ class TestDistributed(TestDB):
         job_config.add(self.test_config)
         self.test_config[streamsx.topology.context.ConfigParams.SSL_VERIFY] = False  
 
+class TestDistributedRemote(TestDB):
+    def setUp(self):
+        Tester.setup_distributed(self)
+        self.jdbc_toolkit_home = None
+        # setup test config
+        self.test_config = {}
+        job_config = streamsx.topology.context.JobConfig(tracing='info')
+        job_config.add(self.test_config)
+        self.test_config[streamsx.topology.context.ConfigParams.SSL_VERIFY] = False 
+
 class TestStreamingAnalytics(TestDB):
     def setUp(self):
         Tester.setup_streaming_analytics(self, force_remote_build=False)
