@@ -39,7 +39,7 @@ def _read_db2_credentials(credentials):
         raise TypeError(credentials)
     return jdbcurl, username, password
     
-def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None, sql_params=None, transaction_size=1, jdbc_driver_class='com.ibm.db2.jcc.DB2Driver', jdbc_driver_lib=None, name=None):
+def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None, sql_params=None, transaction_size=1, jdbc_driver_class='com.ibm.db2.jcc.DB2Driver', jdbc_driver_lib=None, ssl_connection=None, truststore=None, truststore_password=None, keystore=None, keystore_password=None, vm_arg=None, name=None):
     """Runs a SQL statement using DB2 client driver and JDBC database interface.
 
     The statement is called once for each input tuple received. Result sets that are produced by the statement are emitted as output stream tuples.
@@ -73,6 +73,12 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
         transaction_size(int): The number of tuples to commit per transaction. The default value is 1.
         jdbc_driver_class(str): The default driver is for DB2 database 'com.ibm.db2.jcc.DB2Driver'.
         jdbc_driver_lib(str): Path to the JDBC driver library file. Specify the jar filename with absolute path, containing the class given with ``jdbc_driver_class`` parameter. Per default the 'db2jcc4.jar' is added to the 'opt' directory in the application bundle.
+        ssl_connection(bool): Set to ``True`` to enable SSL connection.
+        truststore(str): Path to the trust store file for the SSL connection.
+        truststore_password(str): Password for the trust store file given by the truststore parameter.
+        keystore(str): Path to the key store file for the SSL connection.
+        keystore_password(str): Password for the key store file given by the keystore parameter.
+        vm_arg(str): Arbitrary JVM arguments can be passed to the Streams operator.
         name(str): Sink name in the Streams context, defaults to a generated name.
 
     Returns:
@@ -93,7 +99,7 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
 
     jdbcurl, username, password = _read_db2_credentials(credentials)
 
-    _op = _JDBCRun(stream, schema, jdbcUrl=jdbcurl, jdbcUser=username, jdbcPassword=password, transactionSize=transaction_size, name=name)
+    _op = _JDBCRun(stream, schema, jdbcUrl=jdbcurl, jdbcUser=username, jdbcPassword=password, transactionSize=transaction_size, vmArg=vm_arg, name=name)
     if sql_attribute is not None:
         _op.params['statementAttr'] = _op.attribute(stream, sql_attribute)
     else:
@@ -106,6 +112,18 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
         _op.params['jdbcDriverLib'] = _add_driver_file_from_url(stream.topology, 'https://github.com/IBMStreams/streamsx.jdbc/raw/master/samples/JDBCSample/opt/db2jcc4.jar', 'db2jcc4.jar')
     else:
         _op.params['jdbcDriverLib'] = _add_driver_file(stream.topology, jdbc_driver_lib)
+
+    if ssl_connection is not None:
+        if ssl_connection is True:
+            _op.params['sslConnection'] = _op.expression('true')
+    if keystore is not None:
+        _op.params['keyStore'] = _add_driver_file(stream.topology, keystore)
+    if keystore_password is not None:
+        _op.params['keyStorePassword'] = keystore_password
+    if truststore is not None:
+        _op.params['trustStore'] = _add_driver_file(stream.topology, truststore)
+    if truststore_password is not None:
+        _op.params['trustStorePassword'] = truststore_password
 
     return _op.outputs[0]
 
