@@ -38,8 +38,57 @@ def _read_db2_credentials(credentials):
     else:
         raise TypeError(credentials)
     return jdbcurl, username, password
+
+def configure_connection (instance, name = 'database', credentials = None):
+    """Configures IBM Streams for a certain connection.
+
+
+    Creates or updates an application configuration object containing the required properties with connection information.
+
+
+    Example for creating a configuration for a Streams instance with connection details::
+
+
+        streamsx.rest import Instance
+        import streamsx.topology.context
+        from icpd_core import icpd_util
+        
+        cfg = icpd_util.get_service_instance_details (name='your-streams-instance')
+        cfg[streamsx.topology.context.ConfigParams.SSL_VERIFY] = False
+        instance = Instance.of_service (cfg)
+        app_cfg = configure_connection (instance, credentials = 'my_credentials_json')
+
+
+    Args:
+        instance(streamsx.rest_primitives.Instance): IBM Streams instance object.
+        name(str): Name of the application configuration, default name is 'database'.
+        credentials(str|dict): The service credentials, for example Db2 Warehouse service credentials.
+    Returns:
+        Name of the application configuration.
+    """
+
+    description = 'Database credentials'
+    properties = {}
+    if credentials is None:
+        raise TypeError (credentials)
     
-def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None, sql_params=None, transaction_size=1, jdbc_driver_class='com.ibm.db2.jcc.DB2Driver', jdbc_driver_lib=None, ssl_connection=None, truststore=None, truststore_password=None, keystore=None, keystore_password=None, vm_arg=None, name=None):
+    if isinstance (credentials, dict):
+        properties ['credentials'] = json.dumps (credentials)
+    else:
+        properties ['credentials'] = credentials
+    
+    # check if application configuration exists
+    app_config = instance.get_application_configurations (name = name)
+    if app_config:
+        print ('update application configuration: ' + name)
+        app_config[0].update (properties)
+    else:
+        print ('create application configuration: ' + name)
+        instance.create_application_configuration (name, properties, description)
+    return name
+
+
+def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None, sql_params=None, transaction_size=1, jdbc_driver_class='com.ibm.db2.jcc.DB2Driver', jdbc_driver_lib=None, ssl_connection=None, truststore=None, truststore_password=None, keystore=None, keystore_password=None, keystore_type=None, truststore_type=None, plugin_name=None, security_mechanism=None, vm_arg=None, name=None):
     """Runs a SQL statement using DB2 client driver and JDBC database interface.
 
     The statement is called once for each input tuple received. Result sets that are produced by the statement are emitted as output stream tuples.
@@ -60,8 +109,15 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
         sample_schema = StreamSchema('tuple<rstring A, rstring B>')
         ...
         sql_insert = 'INSERT INTO RUN_SAMPLE (A, B) VALUES (?, ?)'
-        inserts = db.run_statement(create_table, credentials, schema=sample_schema, sql=sql_insert, sql_params="A, B")
+        inserts = db.run_statement(create_table, credentials=credentials, schema=sample_schema, sql=sql_insert, sql_params="A, B")
 
+    Example with "select count" statement and defined output schema with attribute ``TOTAL`` having the result of the query::
+
+        sample_schema = StreamSchema('tuple<int32 TOTAL, rstring string>')
+        sql_query = 'SELECT COUNT(*) AS TOTAL FROM SAMPLE.TAB1'
+        query = topo.source([sql_query]).as_string()
+        res = db.run_statement(query, credentials=credentials, schema=sample_schema)
+    
 
     Args:
         stream(Stream): Stream of tuples containing the SQL statements or SQL statement parameter values. Supports ``streamsx.topology.schema.StreamSchema`` (schema for a structured stream) or ``CommonSchema.String``  as input.
@@ -78,6 +134,10 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
         truststore_password(str): Password for the trust store file given by the truststore parameter.
         keystore(str): Path to the key store file for the SSL connection.
         keystore_password(str): Password for the key store file given by the keystore parameter.
+        keystore_type(str): Type of the key store file (JKS, PKCS12).
+        truststore_type(str): Type of the key store file (JKS, PKCS12).
+        plugin_name(str): Name of the security plugin.
+        security_mechanism(int): Value of the security mechanism.
         vm_arg(str): Arbitrary JVM arguments can be passed to the Streams operator.
         name(str): Sink name in the Streams context, defaults to a generated name.
 
@@ -118,18 +178,26 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
             _op.params['sslConnection'] = _op.expression('true')
     if keystore is not None:
         _op.params['keyStore'] = _add_driver_file(stream.topology, keystore)
+        if keystore_type is not None:
+            _op.params['keyStoreType'] = keystore_type
     if keystore_password is not None:
         _op.params['keyStorePassword'] = keystore_password
     if truststore is not None:
         _op.params['trustStore'] = _add_driver_file(stream.topology, truststore)
+        if truststore_type is not None:
+            _op.params['trustStoreType'] = truststore_type
     if truststore_password is not None:
         _op.params['trustStorePassword'] = truststore_password
+    if security_mechanism is not None:
+        _op.params['securityMechanism'] = _op.expression(security_mechanism)
+    if plugin_name is not None:
+        _op.params['pluginName'] = plugin_name
 
     return _op.outputs[0]
 
 
 class _JDBCRun(streamsx.spl.op.Invoke):
-    def __init__(self, stream, schema=None, jdbcClassName=None, jdbcDriverLib=None, jdbcUrl=None, batchSize=None, checkConnection=None, commitInterval=None, commitPolicy=None, hasResultSetAttr=None, isolationLevel=None, jdbcPassword=None, jdbcProperties=None, jdbcUser=None, keyStore=None, keyStorePassword=None, reconnectionBound=None, reconnectionInterval=None, reconnectionPolicy=None, sqlFailureAction=None, sqlStatusAttr=None, sslConnection=None, statement=None, statementAttr=None, statementParamAttrs=None, transactionSize=None, trustStore=None, trustStorePassword=None, vmArg=None, name=None):
+    def __init__(self, stream, schema=None, jdbcClassName=None, jdbcDriverLib=None, jdbcUrl=None, batchSize=None, checkConnection=None, commitInterval=None, commitPolicy=None, hasResultSetAttr=None, isolationLevel=None, jdbcPassword=None, jdbcProperties=None, jdbcUser=None, keyStore=None, keyStorePassword=None, keyStoreType=None, trustStoreType=None, securityMechanism=None, pluginName=None, reconnectionBound=None, reconnectionInterval=None, reconnectionPolicy=None, sqlFailureAction=None, sqlStatusAttr=None, sslConnection=None, statement=None, statementAttr=None, statementParamAttrs=None, transactionSize=None, trustStore=None, trustStorePassword=None, vmArg=None, name=None):
         topology = stream.topology
         kind="com.ibm.streamsx.jdbc::JDBCRun"
         inputs=stream
@@ -165,6 +233,8 @@ class _JDBCRun(streamsx.spl.op.Invoke):
             params['keyStore'] = keyStore
         if keyStorePassword is not None:
             params['keyStorePassword'] = keyStorePassword
+        if keyStoreType is not None:
+            params['keyStoreType'] = keyStoreType
         if reconnectionBound is not None:
             params['reconnectionBound'] = reconnectionBound
         if reconnectionInterval is not None:
@@ -189,6 +259,13 @@ class _JDBCRun(streamsx.spl.op.Invoke):
             params['trustStore'] = trustStore
         if trustStorePassword is not None:
             params['trustStorePassword'] = trustStorePassword
+        if trustStoreType is not None:
+            params['trustStoreType'] = trustStoreType
+        if securityMechanism is not None:
+            params['securityMechanism'] = securityMechanism
+        if pluginName is not None:
+            params['pluginName'] = pluginName
+
 
         super(_JDBCRun, self).__init__(topology,kind,inputs,schema,params,name)
 
