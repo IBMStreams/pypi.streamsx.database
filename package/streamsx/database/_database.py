@@ -121,7 +121,7 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
 
     Args:
         stream(Stream): Stream of tuples containing the SQL statements or SQL statement parameter values. Supports ``streamsx.topology.schema.StreamSchema`` (schema for a structured stream) or ``CommonSchema.String``  as input.
-        credentials(dict): The credentials of the IBM cloud DB2 warehouse service in JSON.
+        credentials(dict|str): The credentials of the IBM cloud DB2 warehouse service in JSON or the name of the application configuration.
         schema(StreamSchema): Schema for returned stream. Defaults to input stream schema if not set.             
         sql(str): String containing the SQL statement. Use this as alternative option to ``sql_attribute`` parameter.
         sql_attribute(str): Name of the input stream attribute containing the SQL statement. Use this as alternative option to ``sql`` parameter.
@@ -157,9 +157,16 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
     if schema is None:
         schema = stream.oport.schema
 
-    jdbcurl, username, password = _read_db2_credentials(credentials)
+    if isinstance(credentials, dict):
+        jdbcurl, username, password = _read_db2_credentials(credentials)
+        app_config_name = None
+    else:
+        jdbcurl=None
+        username=None
+        password=None
+        app_config_name = credentials
 
-    _op = _JDBCRun(stream, schema, jdbcUrl=jdbcurl, jdbcUser=username, jdbcPassword=password, transactionSize=transaction_size, vmArg=vm_arg, name=name)
+    _op = _JDBCRun(stream, schema, appConfigName=app_config_name, jdbcUrl=jdbcurl, jdbcUser=username, jdbcPassword=password, transactionSize=transaction_size, vmArg=vm_arg, name=name)
     if sql_attribute is not None:
         _op.params['statementAttr'] = _op.attribute(stream, sql_attribute)
     else:
@@ -197,7 +204,7 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
 
 
 class _JDBCRun(streamsx.spl.op.Invoke):
-    def __init__(self, stream, schema=None, jdbcClassName=None, jdbcDriverLib=None, jdbcUrl=None, batchSize=None, checkConnection=None, commitInterval=None, commitPolicy=None, hasResultSetAttr=None, isolationLevel=None, jdbcPassword=None, jdbcProperties=None, jdbcUser=None, keyStore=None, keyStorePassword=None, keyStoreType=None, trustStoreType=None, securityMechanism=None, pluginName=None, reconnectionBound=None, reconnectionInterval=None, reconnectionPolicy=None, sqlFailureAction=None, sqlStatusAttr=None, sslConnection=None, statement=None, statementAttr=None, statementParamAttrs=None, transactionSize=None, trustStore=None, trustStorePassword=None, vmArg=None, name=None):
+    def __init__(self, stream, schema=None, appConfigName=None, jdbcClassName=None, jdbcDriverLib=None, jdbcUrl=None, batchSize=None, checkConnection=None, commitInterval=None, commitPolicy=None, hasResultSetAttr=None, isolationLevel=None, jdbcPassword=None, jdbcProperties=None, jdbcUser=None, keyStore=None, keyStorePassword=None, keyStoreType=None, trustStoreType=None, securityMechanism=None, pluginName=None, reconnectionBound=None, reconnectionInterval=None, reconnectionPolicy=None, sqlFailureAction=None, sqlStatusAttr=None, sslConnection=None, statement=None, statementAttr=None, statementParamAttrs=None, transactionSize=None, trustStore=None, trustStorePassword=None, vmArg=None, name=None):
         topology = stream.topology
         kind="com.ibm.streamsx.jdbc::JDBCRun"
         inputs=stream
@@ -205,6 +212,8 @@ class _JDBCRun(streamsx.spl.op.Invoke):
         params = dict()
         if vmArg is not None:
             params['vmArg'] = vmArg
+        if appConfigName is not None:
+            params['appConfigName'] = appConfigName
         if jdbcClassName is not None:
             params['jdbcClassName'] = jdbcClassName
         if jdbcDriverLib is not None:

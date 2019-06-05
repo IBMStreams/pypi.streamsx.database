@@ -5,7 +5,7 @@ IBM Streams Database integration
 ================================
 
 For details of implementing applications in Python
-for IBM Streams including IBM Cloud Private for Data and the Streaming Analytics service
+for IBM Streams including IBM Cloud Pak for Data and the Streaming Analytics service
 running on IBM Cloud see:
 
   * `streamsx package documentation <https://streamsxtopology.readthedocs.io/en/stable>`_
