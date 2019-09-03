@@ -45,7 +45,7 @@ A simple example of a Streams application that creates a table, inserts a row an
 
 """
 
-__version__='1.3.0'
+__version__='1.4.0'
 
-__all__ = ['run_statement', 'configure_connection']
-from streamsx.database._database import run_statement, configure_connection
+__all__ = ['download_toolkit', 'configure_connection', 'run_statement']
+from streamsx.database._database import download_toolkit, configure_connection, run_statement

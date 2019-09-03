@@ -1,1 +1,2 @@
 streamsx
+streamsx.toolkits

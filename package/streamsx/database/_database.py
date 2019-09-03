@@ -5,12 +5,15 @@
 import datetime
 import requests
 import os
+import json
 from tempfile import gettempdir
 import streamsx.spl.op
 import streamsx.spl.types
 from streamsx.topology.schema import CommonSchema, StreamSchema
 from streamsx.spl.types import rstring
+from streamsx.toolkits import download_toolkit
 
+_TOOLKIT_NAME = 'com.ibm.streamsx.jdbc'
 
 def _add_driver_file_from_url(topology, url, filename):
     r = requests.get(url)
@@ -34,7 +37,15 @@ def _read_db2_credentials(credentials):
     if isinstance(credentials, dict):
         username = credentials.get('username')
         password = credentials.get('password')
-        jdbcurl = credentials.get('jdbcurl')
+        if 'jdbcurl' in credentials:
+            jdbcurl = credentials.get('jdbcurl')
+        else:
+            if 'class' in credentials:
+                if credentials.get('class') == 'external': # CP4D external connection
+                    if 'url' in credentials:
+                        jdbcurl = credentials.get('url')
+                    else:
+                        raise TypeError(credentials)
     else:
         raise TypeError(credentials)
     return jdbcurl, username, password
@@ -48,15 +59,20 @@ def configure_connection (instance, name = 'database', credentials = None):
 
     Example for creating a configuration for a Streams instance with connection details::
 
-
-        streamsx.rest import Instance
+        from streamsx.rest import Instance
         import streamsx.topology.context
         from icpd_core import icpd_util
         
         cfg = icpd_util.get_service_instance_details (name='your-streams-instance')
-        cfg[streamsx.topology.context.ConfigParams.SSL_VERIFY] = False
+        cfg[context.ConfigParams.SSL_VERIFY] = False
         instance = Instance.of_service (cfg)
         app_cfg = configure_connection (instance, credentials = 'my_credentials_json')
+
+    In Cloud Pak for Data you can configure a connection to Db2 with `Connecting to data sources <https://docs-icpdata.mybluemix.net/docs/content/SSQNUZ_current/com.ibm.icpdata.doc/igc/t_connect_data_sources.html>`_
+    Example using this configured external connection with the name 'Db2-Cloud' to create an application configuration for IBM Streams::
+
+        db_external_connection = icpd_util.get_connection('Db2-Cloud',conn_class='external')
+        app_cfg = configure_connection (instance, credentials = db_external_connection)
 
 
     Args:
@@ -73,7 +89,18 @@ def configure_connection (instance, name = 'database', credentials = None):
         raise TypeError (credentials)
     
     if isinstance (credentials, dict):
-        properties ['credentials'] = json.dumps (credentials)
+        if 'class' in credentials:
+            if credentials.get('class') == 'external': # CP4D external connection
+                if 'url' in credentials:
+                    db_json = {}
+                    db_json['jdbcurl'] = credentials.get('url')
+                    db_json['username'] = credentials.get('username')
+                    db_json['password'] = credentials.get('password')
+                    properties ['credentials'] = json.dumps (db_json)
+                else:
+                    raise TypeError(credentials)
+        else:
+            properties ['credentials'] = json.dumps (credentials)
     else:
         properties ['credentials'] = credentials
     
@@ -86,6 +113,41 @@ def configure_connection (instance, name = 'database', credentials = None):
         print ('create application configuration: ' + name)
         instance.create_application_configuration (name, properties, description)
     return name
+
+
+def download_toolkit(url=None, target_dir=None):
+    r"""Downloads the latest JDBC toolkit from GitHub.
+
+    Example for updating the JDBC toolkit for your topology with the latest toolkit from GitHub::
+
+        import streamsx.database as db
+        # download toolkit from GitHub
+        jdbc_toolkit_location = db.download_toolkit()
+        # add the toolkit to topology
+        streamsx.spl.toolkit.add_toolkit(topology, jdbc_toolkit_location)
+
+    Example for updating the topology with a specific version of the JDBC toolkit using a URL::
+
+        import streamsx.database as db
+        url171 = 'https://github.com/IBMStreams/streamsx.jdbc/releases/download/v1.7.1/streamsx.jdbc.toolkits-1.7.1-20190703-1017.tgz'
+        jdbc_toolkit_location = db.download_toolkit(url=url171)
+        streamsx.spl.toolkit.add_toolkit(topology, jdbc_toolkit_location)
+
+    Args:
+        url(str): Link to toolkit archive (\*.tgz) to be downloaded. Use this parameter to 
+            download a specific version of the toolkit.
+        target_dir(str): the directory where the toolkit is unpacked to. If a relative path is given,
+            the path is appended to the system temporary directory, for example to /tmp on Unix/Linux systems.
+            If target_dir is ``None`` a location relative to the system temporary directory is chosen.
+
+    Returns:
+        str: the location of the downloaded toolkit
+
+    .. note:: This function requires an outgoing Internet connection
+    .. versionadded:: 1.4
+    """
+    _toolkit_location = streamsx.toolkits.download_toolkit (toolkit_name=_TOOLKIT_NAME, url=url, target_dir=target_dir)
+    return _toolkit_location
 
 
 def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None, sql_params=None, transaction_size=1, jdbc_driver_class='com.ibm.db2.jcc.DB2Driver', jdbc_driver_lib=None, ssl_connection=None, truststore=None, truststore_password=None, keystore=None, keystore_password=None, keystore_type=None, truststore_type=None, plugin_name=None, security_mechanism=None, vm_arg=None, name=None):
@@ -118,10 +180,16 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
         query = topo.source([sql_query]).as_string()
         res = db.run_statement(query, credentials=credentials, schema=sample_schema)
     
+    Example for using configured external connection with the name 'Db2-Cloud' (Cloud Pak for Data only),
+    see `Connecting to data sources <https://docs-icpdata.mybluemix.net/docs/content/SSQNUZ_current/com.ibm.icpdata.doc/igc/t_connect_data_sources.html>`_::
+
+        db_external_connection = icpd_util.get_connection('Db2-Cloud',conn_class='external')
+        res = db.run_statement(query, credentials=db_external_connection, schema=sample_schema)
+
 
     Args:
         stream(Stream): Stream of tuples containing the SQL statements or SQL statement parameter values. Supports ``streamsx.topology.schema.StreamSchema`` (schema for a structured stream) or ``CommonSchema.String``  as input.
-        credentials(dict|str): The credentials of the IBM cloud DB2 warehouse service in JSON or the name of the application configuration.
+        credentials(dict|str): The credentials of the IBM cloud DB2 warehouse service as dict or configured external connection of kind "Db2 Warehouse" (Cloud Pak for Data only) as dict or the name of the application configuration.
         schema(StreamSchema): Schema for returned stream. Defaults to input stream schema if not set.             
         sql(str): String containing the SQL statement. Use this as alternative option to ``sql_attribute`` parameter.
         sql_attribute(str): Name of the input stream attribute containing the SQL statement. Use this as alternative option to ``sql`` parameter.
