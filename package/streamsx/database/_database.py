@@ -12,6 +12,8 @@ import streamsx.spl.types
 from streamsx.topology.schema import CommonSchema, StreamSchema
 from streamsx.spl.types import rstring
 from streamsx.toolkits import download_toolkit
+import streamsx.topology.composite
+
 
 _TOOLKIT_NAME = 'com.ibm.streamsx.jdbc'
 
@@ -269,6 +271,82 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
         _op.params['pluginName'] = plugin_name
 
     return _op.outputs[0]
+
+
+class JDBCStatement(streamsx.topology.composite.Map):
+    """
+    Composite map transformation for JDBC statement
+
+    .. versionadded:: 1.5
+
+    Attributes
+    ----------
+    credentials : str
+        The credentials of the IBM cloud DB2 warehouse service as dict or configured external connection of kind "Db2 Warehouse" (Cloud Pak for Data only) as dict or the name of the application configuration.
+
+    """
+
+
+    def __init__(self, credentials):
+        self.credentials = credentials
+
+#    @property 
+#    def x(self):
+#        return self.x
+
+#    @x.setter
+#    def x(self, x):
+#        """Set x.
+#        """
+#        self._x = x 
+
+#   def set_x(self, value=None):
+#       """setter for x.
+#
+#        Args:
+#            x(str): xxxx
+#        """
+#        print("Setting x value with setter")
+#        self.x = value 
+#        return self
+
+    def populate(self, topology, stream, schema, name, **options) -> streamsx.topology.topology.Stream:
+        """
+        Populate the topology with this composite map transformation.
+
+        Args:
+            topology: Topology containing the composite map.
+            stream: Stream to be transformed.
+            schema: Schema passed into ``map``.
+            name: Name passed into ``map``.
+            **options: Future options passed to ``map``.
+
+        Returns:
+            Stream: Single stream representing the transformation of `stream`.
+        """
+        print("populate")
+        print(self.__dict__)
+
+        if isinstance(self.credentials, dict):
+            jdbcurl, username, password = _read_db2_credentials(self.credentials)
+            app_config_name = None
+        else:
+            jdbcurl=None
+            username=None
+            password=None
+            app_config_name = self.credentials
+
+        jdbc_driver_class = 'com.ibm.db2.jcc.DB2Driver'
+        jdbc_driver_lib = None
+
+        _op = _JDBCRun(stream=stream, schema=schema, appConfigName=app_config_name, jdbcUrl=jdbcurl, jdbcUser=username, jdbcPassword=password, name=name)
+        _op.params['jdbcClassName'] = jdbc_driver_class
+        if jdbc_driver_lib is None:
+            _op.params['jdbcDriverLib'] = _add_driver_file_from_url(stream.topology, 'https://github.com/IBMStreams/streamsx.jdbc/raw/master/samples/JDBCSample/opt/db2jcc4.jar', 'db2jcc4.jar')
+        else:
+            _op.params['jdbcDriverLib'] = _add_driver_file(stream.topology, jdbc_driver_lib)
+
+        return _op.outputs[0]
 
 
 class _JDBCRun(streamsx.spl.op.Invoke):
