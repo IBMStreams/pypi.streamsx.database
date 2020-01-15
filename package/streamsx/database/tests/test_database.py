@@ -28,6 +28,35 @@ def streams_install_env_var():
         result = False
     return result
 
+class TestComposite(unittest.TestCase):
+
+    def _build_only(self, name, topo):
+        result = streamsx.topology.context.submit("TOOLKIT", topo.graph) # creates tk* directory
+        print(name + ' (TOOLKIT):' + str(result))
+        assert(result.return_code == 0)
+        result = streamsx.topology.context.submit("BUNDLE", topo.graph)  # creates sab file
+        print(name + ' (BUNDLE):' + str(result))
+        assert(result.return_code == 0)
+
+    def test_basic(self):
+        print ('\n---------'+str(self))
+        name = 'test_basic'
+        creds_file = os.environ['DB2_CREDENTIALS']
+        with open(creds_file) as data_file:
+            credentials = json.load(data_file)
+        topo = Topology(name)
+        s = topo.source(['DROP TABLE STR_SAMPLE']).as_string()
+
+        res_sql = s.map(db.JDBCStatement(credentials), schema='tuple<rstring string>')
+        res_sql.print()
+
+        self._build_only(name, topo)
+
+        #statement = db.JDBCStatement().set_credentials(credentials)
+        #print(statement.credentials)
+        #statement.populate(None, None, None, None)
+
+
 class TestParams(unittest.TestCase):
 
     def test_bad_lib_param(self):
