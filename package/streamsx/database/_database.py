@@ -173,7 +173,7 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
         sample_schema = StreamSchema('tuple<rstring A, rstring B>')
         ...
         sql_insert = 'INSERT INTO RUN_SAMPLE (A, B) VALUES (?, ?)'
-        inserts = db.run_statement(create_table, credentials=credentials, schema=sample_schema, sql=sql_insert, sql_params="A, B")
+        inserts = db.run_statement(sample_stream, credentials=credentials, schema=sample_schema, sql=sql_insert, sql_params="A, B")
 
     Example with "select count" statement and defined output schema with attribute ``TOTAL`` having the result of the query::
 
@@ -277,11 +277,44 @@ class JDBCStatement(streamsx.topology.composite.Map):
     """
     Composite map transformation for JDBC statement
 
+    The statement is called once for each input tuple received. Result sets that are produced by the statement are emitted as output stream tuples.
+    
+    This function includes the JDBC driver for DB2 database ('com.ibm.db2.jcc.DB2Driver') in the application bundle per default.
+
+    Different drivers, e.g. for other databases than DB2, can be applied with the method ``set_jdbc_driver()``.
+    
+    There are two ways to specify the statement:
+
+    * Statement is part of the input stream. You can specify which input stream attribute contains the statement with ``set_sql_attribute()``. If input stream is of type ``CommonSchema.String``, then you don't need to specify the ``sql_attribute`` property.
+    * Statement is given with the ``set_sql()`` method. The statement can contain parameter markers that are set with input stream attributes specified by ``set_sql_params()``.
+
+    Example with "insert" statement and values passed with input stream, where the input stream "sample_stream" is of type "sample_schema"::
+
+        import streamsx.database as db
+        
+        sample_schema = StreamSchema('tuple<rstring A, rstring B>')
+        ...
+        sql_insert = 'INSERT INTO RUN_SAMPLE (A, B) VALUES (?, ?)'
+        inserts = sample_stream.map(db.JDBCStatement(credentials), schema=sample_schema).set_sql(sql_insert).set_sql_params=("A, B")
+
+    Example with "select count" statement and defined output schema with attribute ``TOTAL`` having the result of the query::
+
+        sample_schema = StreamSchema('tuple<int32 TOTAL, rstring string>')
+        sql_query = 'SELECT COUNT(*) AS TOTAL FROM SAMPLE.TAB1'
+        query = topo.source([sql_query]).as_string()
+        res = query.map(db.JDBCStatement(credentials), schema=sample_schema)
+    
+    Example for using configured external connection with the name 'Db2-Cloud' (Cloud Pak for Data only),
+    see `Connecting to data sources <https://docs-icpdata.mybluemix.net/docs/content/SSQNUZ_current/com.ibm.icpdata.doc/igc/t_connect_data_sources.html>`_::
+
+        db_external_connection = icpd_util.get_connection('Db2-Cloud',conn_class='external')
+        res = query.map(db.JDBCStatement(db_external_connection), schema=sample_schema)
+
     .. versionadded:: 1.5
 
     Attributes
     ----------
-    credentials : str
+    credentials : (dict|str)
         The credentials of the IBM cloud DB2 warehouse service as dict or configured external connection of kind "Db2 Warehouse" (Cloud Pak for Data only) as dict or the name of the application configuration.
 
     """
@@ -289,43 +322,177 @@ class JDBCStatement(streamsx.topology.composite.Map):
 
     def __init__(self, credentials):
         self.credentials = credentials
+        # defaults
+        self.vm_arg=None
+        self.jdbc_driver_class = 'com.ibm.db2.jcc.DB2Driver'
+        self.jdbc_driver_lib = None
+        self.sql=None
+        self.sql_attribute=None
+        self.sql_params=None
+        self.transaction_size=1
+        self.ssl_connection=None
+        self.truststore=None
+        self.truststore_password=None
+        self.truststore_type=None
+        self.keystore=None
+        self.keystore_password=None
+        self.keystore_type=None
+        self.plugin_name=None
+        self.security_mechanism=None
+        
 
-#    @property 
-#    def x(self):
-#        return self.x
-
-#    @x.setter
-#    def x(self, x):
-#        """Set x.
-#        """
-#        self._x = x 
-
-#   def set_x(self, value=None):
-#       """setter for x.
-#
-#        Args:
-#            x(str): xxxx
-#        """
-#        print("Setting x value with setter")
-#        self.x = value 
-#        return self
-
-    def populate(self, topology, stream, schema, name, **options) -> streamsx.topology.topology.Stream:
-        """
-        Populate the topology with this composite map transformation.
+    def set_vm_arg(self, vm_arg):
+        """Sets the JVM arguments
 
         Args:
-            topology: Topology containing the composite map.
-            stream: Stream to be transformed.
-            schema: Schema passed into ``map``.
-            name: Name passed into ``map``.
-            **options: Future options passed to ``map``.
+            vm_arg(str): Arbitrary JVM arguments can be passed to the Streams operator
 
-        Returns:
-            Stream: Single stream representing the transformation of `stream`.
+        :returns: the instance
+        :rtype: streamsx.database.JDBCStatment
         """
-        print("populate")
-        print(self.__dict__)
+        self.vm_arg = vm_arg 
+        return self
+
+    def set_jdbc_driver(self, library, class_name='com.ibm.db2.jcc.DB2Driver'):
+        """Sets the JDBC driver
+
+        Args:
+            library(str): Path to the JDBC driver library file. Specify the jar filename with absolute path, containing the class given with ``jdbc_driver_class`` parameter. Per default the 'db2jcc4.jar' is added to the 'opt' directory in the application bundle.
+            class_name(str): Set the class name of the JDBC driver. The default driver is for DB2 database 'com.ibm.db2.jcc.DB2Driver'.
+
+        :returns: the instance
+        :rtype: streamsx.database.JDBCStatment
+        """
+        if lib is None and class_name != 'com.ibm.db2.jcc.DB2Driver':
+            raise ValueError("Parameter jdbc_driver_lib must be specified containing the class from jdbc_driver_class parameter.")
+        self.jdbc_driver_class = class_name
+        self.jdbc_driver_lib = library
+        return self
+
+    def set_plugin_name(self, plugin_name):
+        """Sets the name of the security plugin
+
+        Args:
+            plugin_name(str): Name of the security plugin
+
+        :returns: the instance
+        :rtype: streamsx.database.JDBCStatment
+        """
+        self.plugin_name = plugin_name 
+        return self
+
+    def set_security_mechanism(self, security_mechanism):
+        """Sets the value of the security mechanism
+
+        Args:
+            security_mechanism(int): Value of the security mechanism.
+
+        :returns: the instance
+        :rtype: streamsx.database.JDBCStatment
+        """
+        self.security_mechanism = security_mechanism 
+        return self
+
+    def set_ssl_connection(self, ssl_connection=True):
+        """Enable the SSL connection
+
+        Args:
+            ssl_connection(bool): Set to ``True`` to enable SSL connection.
+
+        :returns: the instance
+        :rtype: streamsx.database.JDBCStatment
+        """
+        self.ssl_connection = ssl_connection 
+        return self
+
+    def set_truststore(self, truststore, truststore_password, truststore_type=None):
+        """Sets the truststore file and password
+
+        Args:
+            truststore(str): Path to the key store file for the SSL connection.
+            truststore_password(str): Password for the key store file given by the keystore parameter.
+            truststore_type(str): Type of the key store file (JKS, PKCS12).
+
+        :returns: the instance
+        :rtype: streamsx.database.JDBCStatment
+        """
+        self.truststore=truststore
+        self.truststore_password=truststore_password
+        self.truststore_type=truststore_type
+        return self
+
+    def set_keystore(self, keystore, keystore_password, keystore_type=None):
+        """Set the keystore file and passsword
+
+        Args:
+            keystore(str): Path to the key store file for the SSL connection.
+            keystore_password(str): Password for the key store file given by the keystore parameter.
+            keystore_type(str): Type of the key store file (JKS, PKCS12).
+
+        :returns: the instance
+        :rtype: streamsx.database.JDBCStatment
+        """
+        self.keystore=keystore
+        self.keystore_password=keystore_password
+        self.keystore_type=keystore_type
+        return self
+
+    def set_transaction_size(self, transaction_size=1):
+        """Sets the transaction size
+
+        Args:
+            transaction_size(int): The number of tuples to commit per transaction. The default value is 1.
+
+        :returns: the instance
+        :rtype: streamsx.database.JDBCStatment
+        """
+        self.transaction_size = transaction_size 
+        return self
+
+    def set_sql(self, sql):
+        """Sets the SQL statement
+
+        Args:
+            sql(str): String containing the SQL statement. Use this as alternative option to ``sql_attribute`` parameter.
+
+
+        :returns: the instance
+        :rtype: streamsx.database.JDBCStatment
+        """
+        self.sql = sql 
+        return self
+
+    def set_sql_attribute(self, sql_attribute):
+        """Sets the name of the input stream attribute containing the SQL statement. Use this as alternative option to ``sql`` parameter.
+        
+        Args:
+            sql_attribute(str): Name of the input stream attribute containing the SQL statement. Use this as alternative option to ``sql`` parameter.
+
+        :returns: the instance
+        :rtype: streamsx.database.JDBCStatment
+        """
+        self.sql_attribute = sql_attribute 
+        return self
+
+    def set_sql_params(self, sql_params):
+        """Sets the values of SQL statement parameters. These values and SQL statement parameter markers are associated in lexicographic order. For example, the first parameter marker in the SQL statement is associated with the first sql_params value.
+
+        Args:
+            sql_params(str): The values of SQL statement parameters. These values and SQL statement parameter markers are associated in lexicographic order. For example, the first parameter marker in the SQL statement is associated with the first sql_params value.
+
+        :returns: the instance
+        :rtype: streamsx.database.JDBCStatment
+        """
+        self.sql_params = sql_params 
+        return self
+
+    def populate(self, topology, stream, schema, name, **options):
+
+        if self.sql_attribute is None and self.sql is None:
+            if stream.oport.schema == CommonSchema.String:
+                self.sql_attribute = 'string'
+            else:
+                raise ValueError("Either sql_attribute or sql parameter must be set.")
 
         if isinstance(self.credentials, dict):
             jdbcurl, username, password = _read_db2_credentials(self.credentials)
@@ -336,15 +503,42 @@ class JDBCStatement(streamsx.topology.composite.Map):
             password=None
             app_config_name = self.credentials
 
-        jdbc_driver_class = 'com.ibm.db2.jcc.DB2Driver'
-        jdbc_driver_lib = None
+        _op = _JDBCRun(stream=stream, schema=schema, appConfigName=app_config_name, jdbcUrl=jdbcurl, jdbcUser=username, jdbcPassword=password, transactionSize=self.transaction_size, vmArg=self.vm_arg, name=name)
 
-        _op = _JDBCRun(stream=stream, schema=schema, appConfigName=app_config_name, jdbcUrl=jdbcurl, jdbcUser=username, jdbcPassword=password, name=name)
-        _op.params['jdbcClassName'] = jdbc_driver_class
-        if jdbc_driver_lib is None:
+        if self.sql_attribute is not None:
+            _op.params['statementAttr'] = _op.attribute(stream, self.sql_attribute)
+        else:
+            _op.params['statement'] = self.sql
+        if self.sql_params is not None:
+            _op.params['statementParamAttrs'] = self.sql_params
+
+        # JDBC driver settings
+        _op.params['jdbcClassName'] = self.jdbc_driver_class
+        if self.jdbc_driver_lib is None:
             _op.params['jdbcDriverLib'] = _add_driver_file_from_url(stream.topology, 'https://github.com/IBMStreams/streamsx.jdbc/raw/master/samples/JDBCSample/opt/db2jcc4.jar', 'db2jcc4.jar')
         else:
-            _op.params['jdbcDriverLib'] = _add_driver_file(stream.topology, jdbc_driver_lib)
+            _op.params['jdbcDriverLib'] = _add_driver_file(stream.topology, self.jdbc_driver_lib)
+
+        # SSL settings
+        if self.ssl_connection is not None:
+            if self.ssl_connection is True:
+                _op.params['sslConnection'] = _op.expression('true')
+        if self.keystore is not None:
+            _op.params['keyStore'] = _add_driver_file(stream.topology, self.keystore)
+            if self.keystore_type is not None:
+                _op.params['keyStoreType'] = self.keystore_type
+        if self.keystore_password is not None:
+            _op.params['keyStorePassword'] = self.keystore_password
+        if self.truststore is not None:
+            _op.params['trustStore'] = _add_driver_file(stream.topology, self.truststore)
+            if self.truststore_type is not None:
+                _op.params['trustStoreType'] = self.truststore_type
+        if self.truststore_password is not None:
+            _op.params['trustStorePassword'] = self.truststore_password
+        if self.security_mechanism is not None:
+            _op.params['securityMechanism'] = _op.expression(self.security_mechanism)
+        if self.plugin_name is not None:
+            _op.params['pluginName'] = self.plugin_name
 
         return _op.outputs[0]
 
