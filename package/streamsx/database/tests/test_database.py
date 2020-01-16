@@ -52,9 +52,28 @@ class TestComposite(unittest.TestCase):
 
         self._build_only(name, topo)
 
-        #statement = db.JDBCStatement().set_credentials(credentials)
-        #print(statement.credentials)
-        #statement.populate(None, None, None, None)
+
+    def test_props(self):
+        print ('\n---------'+str(self))
+        name = 'test_props'
+        creds_file = os.environ['DB2_CREDENTIALS']
+        with open(creds_file) as data_file:
+            credentials = json.load(data_file)
+        topo = Topology(name)
+
+        pulse = op.Source(topo, "spl.utility::Beacon", 'tuple<rstring A, rstring B>', params = {'iterations':1})
+        pulse.A = pulse.output('"hello"')
+        pulse.B = pulse.output('"world"')
+
+        sample_schema = StreamSchema('tuple<rstring A, rstring B>')
+
+        sql_create = 'CREATE TABLE RUN_SAMPLE (A CHAR(10), B CHAR(10))'
+        stmt = db.JDBCStatement(credentials)
+        stmt.sql = sql_create
+        res_sql = pulse.stream.map(stmt, schema=sample_schema)
+        res_sql.print()
+
+        self._build_only(name, topo)
 
 
 class TestParams(unittest.TestCase):
