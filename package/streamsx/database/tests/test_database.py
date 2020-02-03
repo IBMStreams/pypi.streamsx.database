@@ -28,6 +28,76 @@ def streams_install_env_var():
         result = False
     return result
 
+class TestComposite(unittest.TestCase):
+
+    def _build_only(self, name, topo):
+        result = streamsx.topology.context.submit("TOOLKIT", topo.graph) # creates tk* directory
+        print(name + ' (TOOLKIT):' + str(result))
+        assert(result.return_code == 0)
+        result = streamsx.topology.context.submit("BUNDLE", topo.graph)  # creates sab file
+        print(name + ' (BUNDLE):' + str(result))
+        assert(result.return_code == 0)
+
+    def test_basic(self):
+        print ('\n---------'+str(self))
+        name = 'test_basic'
+        creds_file = os.environ['DB2_CREDENTIALS']
+        with open(creds_file) as data_file:
+            credentials = json.load(data_file)
+        topo = Topology(name)
+        s = topo.source(['DROP TABLE STR_SAMPLE']).as_string()
+
+        res_sql = s.map(db.JDBCStatement(credentials), schema=CommonSchema.String)
+        res_sql.print()
+
+        self._build_only(name, topo)
+
+
+    def test_props(self):
+        print ('\n---------'+str(self))
+        name = 'test_props'
+        creds_file = os.environ['DB2_CREDENTIALS']
+        with open(creds_file) as data_file:
+            credentials = json.load(data_file)
+        topo = Topology(name)
+
+        pulse = op.Source(topo, "spl.utility::Beacon", 'tuple<rstring A, rstring B>', params = {'iterations':1})
+        pulse.A = pulse.output('"hello"')
+        pulse.B = pulse.output('"world"')
+
+        sample_schema = StreamSchema('tuple<rstring A, rstring B>')
+
+        sql_create = 'CREATE TABLE RUN_SAMPLE (A CHAR(10), B CHAR(10))'
+        stmt = db.JDBCStatement(credentials)
+        stmt.sql = sql_create
+        res_sql = pulse.stream.map(stmt, schema=sample_schema)
+        res_sql.print()
+
+        self._build_only(name, topo)
+
+    def test_props_kwargs(self):
+        print ('\n---------'+str(self))
+        name = 'test_props_kwargs'
+        creds_file = os.environ['DB2_CREDENTIALS']
+        with open(creds_file) as data_file:
+            credentials = json.load(data_file)
+        topo = Topology(name)
+
+        pulse = op.Source(topo, "spl.utility::Beacon", 'tuple<rstring A, rstring B>', params = {'iterations':1})
+        pulse.A = pulse.output('"hello"')
+        pulse.B = pulse.output('"world"')
+
+        sample_schema = StreamSchema('tuple<rstring A, rstring B>')
+
+        config = {
+            "sql": 'CREATE TABLE RUN_SAMPLE (A CHAR(10), B CHAR(10))'
+        }
+        res_sql = pulse.stream.map(db.JDBCStatement(credentials, **config), schema=sample_schema)
+        res_sql.print()
+
+        self._build_only(name, topo)
+
+
 class TestParams(unittest.TestCase):
 
     def test_bad_lib_param(self):
