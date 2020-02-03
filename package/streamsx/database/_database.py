@@ -299,6 +299,18 @@ class JDBCStatement(streamsx.topology.composite.Map):
         stmt.sql_params = 'A, B'
         inserts = sample_stream.map(stmt, schema=sample_schema)
 
+    Example with key value arguments::
+
+        import streamsx.database as db
+        
+        sample_schema = StreamSchema('tuple<rstring A, rstring B>')
+        ...
+        config = {
+            'sql': 'INSERT INTO RUN_SAMPLE (A, B) VALUES (?, ?)',
+            'sql_params': 'A, B'
+        }
+        inserts = sample_stream.map(db.JDBCStatement(credentials, **config), schema=sample_schema)
+
     Example with "select count" statement and defined output schema with attribute ``TOTAL`` having the result of the query::
 
         sample_schema = StreamSchema('tuple<int32 TOTAL, rstring string>')
@@ -318,11 +330,12 @@ class JDBCStatement(streamsx.topology.composite.Map):
     ----------
     credentials : dict|str
         The credentials of the IBM cloud DB2 warehouse service as dict or configured external connection of kind "Db2 Warehouse" (Cloud Pak for Data only) as dict or the name of the application configuration.
-
+    options : dict
+        The additional optional parameters as variable keyword arguments.
     """
 
 
-    def __init__(self, credentials):
+    def __init__(self, credentials, **options):
         self.credentials = credentials
         # defaults
         self.vm_arg = None
@@ -341,6 +354,39 @@ class JDBCStatement(streamsx.topology.composite.Map):
         self.keystore_type=None
         self.plugin_name=None
         self.security_mechanism=None
+        if 'vm_arg' in options:
+            self.vm_arg = options.get('vm_arg')
+        if 'jdbc_driver_class' in options:
+            self.jdbc_driver_class = options.get('jdbc_driver_class')
+        if 'jdbc_driver_lib' in options:
+            self.jdbc_driver_lib = options.get('jdbc_driver_lib')
+        if 'sql' in options:
+            self.sql = options.get('sql')
+        if 'sql_attribute' in options:
+            self.sql_attribute = options.get('sql_attribute')
+        if 'sql_params' in options:
+            self.sql_params = options.get('sql_params')
+        if 'transaction_size' in options:
+            self.transaction_size = options.get('transaction_size')
+        if 'ssl_connection' in options:
+            self.ssl_connection = options.get('ssl_connection')
+        if 'truststore' in options:
+            self.truststore = options.get('truststore')
+        if 'truststore_password' in options:
+            self.truststore_password = options.get('truststore_password')
+        if 'truststore_type' in options:
+            self.truststore_type = options.get('truststore_type')
+        if 'keystore' in options:
+            self.keystore = options.get('keystore')
+        if 'keystore_password' in options:
+            self.keystore_password = options.get('keystore_password')
+        if 'keystore_type' in options:
+            self.keystore_type = options.get('keystore_type')
+        if 'plugin_name' in options:
+            self.plugin_name = options.get('plugin_name')
+        if 'security_mechanism' in options:
+            self.security_mechanism = options.get('security_mechanism')
+
         
     @property
     def vm_arg(self):

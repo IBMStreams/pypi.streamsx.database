@@ -37,7 +37,7 @@ A simple example of a Streams application that creates a table, inserts a row an
     sql_insert = 'INSERT INTO RUN_SAMPLE (A, B) VALUES (\'hello\', \'world\')'
     sql_drop = 'DROP TABLE RUN_SAMPLE'
     s = topo.source([sql_create, sql_insert, sql_drop]).as_string()
-    res_sql = db.run_statement(s, credentials)
+    res_sql = s.map(db.JDBCStatement(credentials), schema=CommonSchema.String)
     res_sql.print()
     submit('STREAMING_ANALYTICS_SERVICE', topo)
     # Use for IBM Streams including IBM Cloud Private for Data
@@ -45,7 +45,7 @@ A simple example of a Streams application that creates a table, inserts a row an
 
 """
 
-__version__='1.5.0a4'
+__version__='1.5.0b0'
 
 __all__ = ['JDBCStatement', 'download_toolkit', 'configure_connection', 'run_statement']
 from streamsx.database._database import JDBCStatement, download_toolkit, configure_connection, run_statement
