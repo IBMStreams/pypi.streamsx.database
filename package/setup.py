@@ -5,7 +5,7 @@ setup(
   packages = ['streamsx.database'],
   include_package_data=True,
   version = streamsx.database.__version__,
-  description = 'IBM Streams Database integration',
+  description = 'Database integration for IBM Streams',
   long_description = open('DESC.txt').read(),
   author = 'IBM Streams @ github.com',
   author_email = 'hegermar@de.ibm.com',
