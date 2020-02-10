@@ -6,7 +6,7 @@
 Overview
 ++++++++
 
-Provides functions to run SQL statements to a database.
+Provides classes and functions to run SQL statements to a database.
 
 
 Credentials
@@ -45,7 +45,7 @@ A simple example of a Streams application that creates a table, inserts a row an
 
 """
 
-__version__='1.5.0b0'
+__version__='1.5.0b1'
 
 __all__ = ['JDBCStatement', 'download_toolkit', 'configure_connection', 'run_statement']
 from streamsx.database._database import JDBCStatement, download_toolkit, configure_connection, run_statement
