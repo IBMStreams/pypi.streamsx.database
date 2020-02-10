@@ -1,7 +1,7 @@
 Overview
 ========
 
-Provides functions to run SQL statements to a database, for example IBM Db2 Warehouse.
+Provides classes and functions to run SQL statements to a database, for example IBM Db2 Warehouse.
 
 This package exposes the `com.ibm.streamsx.jdbc <https://ibmstreams.github.io/streamsx.jdbc/>`_ toolkit as Python methods for use with Streaming Analytics service on
 IBM Cloud and IBM Streams including IBM Cloud Pak for Data.
