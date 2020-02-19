@@ -190,7 +190,7 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
 
 
     Args:
-        stream(Stream): Stream of tuples containing the SQL statements or SQL statement parameter values. Supports ``streamsx.topology.schema.StreamSchema`` (schema for a structured stream) or ``CommonSchema.String``  as input.
+        stream(streamsx.topology.topology.Stream): Stream of tuples containing the SQL statements or SQL statement parameter values. Supports ``streamsx.topology.schema.StreamSchema`` (schema for a structured stream) or ``CommonSchema.String``  as input.
         credentials(dict|str): The credentials of the IBM cloud DB2 warehouse service as dict or configured external connection of kind "Db2 Warehouse" (Cloud Pak for Data only) as dict or the name of the application configuration.
         schema(StreamSchema): Schema for returned stream. Defaults to input stream schema if not set.             
         sql(str): String containing the SQL statement. Use this as alternative option to ``sql_attribute`` parameter.
@@ -212,7 +212,7 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
         name(str): Sink name in the Streams context, defaults to a generated name.
 
     Returns:
-        Output Stream.
+        :py:class:`topology_ref:streamsx.topology.topology.Stream`: Output Stream.
     """
 
     if sql_attribute is None and sql is None:
@@ -279,9 +279,9 @@ class JDBCStatement(streamsx.topology.composite.Map):
 
     The statement is called once for each input tuple received. Result sets that are produced by the statement are emitted as output stream tuples.
     
-    This function includes the JDBC driver for DB2 database ('com.ibm.db2.jcc.DB2Driver') in the application bundle per default.
+    This function includes the JDBC driver for Db2 database ('com.ibm.db2.jcc.DB2Driver') in the application bundle per default.
 
-    Different drivers, e.g. for other databases than DB2, can be applied with the properties :attr:`jdbc_driver_lib` and :attr:`jdbc_driver_class`.
+    Different drivers, e.g. for other databases than Db2, can be applied with the properties :attr:`jdbc_driver_lib` and :attr:`jdbc_driver_class`.
     
     There are two ways to specify the statement:
 
@@ -329,7 +329,7 @@ class JDBCStatement(streamsx.topology.composite.Map):
     Attributes
     ----------
     credentials : dict|str
-        The credentials of the IBM cloud DB2 warehouse service as dict or configured external connection of kind "Db2 Warehouse" (Cloud Pak for Data only) as dict or the name of the application configuration.
+        The credentials of the IBM cloud Db2 warehouse service as dict or configured external connection of kind "Db2 Warehouse" (Cloud Pak for Data only) as dict or the name of the application configuration.
     options : dict
         The additional optional parameters as variable keyword arguments.
     """
