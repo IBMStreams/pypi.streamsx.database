@@ -213,6 +213,9 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
 
     Returns:
         :py:class:`topology_ref:streamsx.topology.topology.Stream`: Output Stream.
+
+    .. deprecated:: 1.5.0
+        Use the :py:class:`~JDBCStatement`.
     """
 
     if sql_attribute is None and sql is None:
@@ -317,7 +320,14 @@ class JDBCStatement(streamsx.topology.composite.Map):
         sql_query = 'SELECT COUNT(*) AS TOTAL FROM SAMPLE.TAB1'
         query = topo.source([sql_query]).as_string()
         res = query.map(db.JDBCStatement(credentials), schema=sample_schema)
-    
+  
+    Example with "drop table" statement and default output schema (set to input schema)::
+  
+        sql_drop = 'DROP TABLE RUN_SAMPLE'
+        s = topo.source([sql_drop]).as_string()
+        res_sql = s.map(db.JDBCStatement(credentials))
+        res_sql.print()
+
     Example for using configured external connection with the name 'Db2-Cloud' (Cloud Pak for Data only),
     see `Connecting to data sources <https://docs-icpdata.mybluemix.net/docs/content/SSQNUZ_current/com.ibm.icpdata.doc/igc/t_connect_data_sources.html>`_::
 
@@ -595,6 +605,9 @@ class JDBCStatement(streamsx.topology.composite.Map):
 
         if self.jdbc_driver_lib is None and self.jdbc_driver_class != 'com.ibm.db2.jcc.DB2Driver':
             raise ValueError("Parameter jdbc_driver_lib must be specified containing the class from jdbc_driver_class parameter.")
+
+        if schema is None:
+            schema = stream.oport.schema # output schema is the same as input schema
 
         if isinstance(self.credentials, dict):
             jdbcurl, username, password = _read_db2_credentials(self.credentials)
