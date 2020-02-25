@@ -52,6 +52,19 @@ class TestComposite(unittest.TestCase):
 
         self._build_only(name, topo)
 
+    def test_no_out_schema(self):
+        print ('\n---------'+str(self))
+        name = 'test_no_out_schema'
+        creds_file = os.environ['DB2_CREDENTIALS']
+        with open(creds_file) as data_file:
+            credentials = json.load(data_file)
+        topo = Topology(name)
+        s = topo.source(['DROP TABLE STR_SAMPLE']).as_string()
+
+        res_sql = s.map(db.JDBCStatement(credentials))
+        res_sql.print()
+
+        self._build_only(name, topo)
 
     def test_props(self):
         print ('\n---------'+str(self))
