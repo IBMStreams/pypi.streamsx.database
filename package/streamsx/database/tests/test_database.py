@@ -12,6 +12,8 @@ import unittest
 import datetime
 import os
 import json
+import random
+import time
 
 ##
 ## Test assumptions
@@ -27,6 +29,15 @@ def streams_install_env_var():
     except KeyError: 
         result = False
     return result
+
+# generates some data with schema (ID, NAME, AGE)
+def generate_data():
+    counter = 0
+    while True:
+        #yield a random id, name and age
+        counter = counter +1 
+        yield  {"NAME": "Name_" + str(random.randint(0,500)), "ID": counter, "AGE": random.randint(10,99)}
+        time.sleep(0.10)
 
 class TestComposite(unittest.TestCase):
 
@@ -110,6 +121,22 @@ class TestComposite(unittest.TestCase):
 
         self._build_only(name, topo)
 
+    def test_sample(self):
+        print ('\n---------'+str(self))
+        name = 'test_sample'
+        creds_file = os.environ['DB2_CREDENTIALS']
+        with open(creds_file) as data_file:
+            credentials = json.load(data_file)
+        topo = Topology(name)
+        tuple_schema = StreamSchema("tuple<int64 ID, rstring NAME, int32 AGE>")
+        # Generates data for a stream of three attributes. Each attribute maps to a column using the same name of the Db2 database table.
+        sample_data = topo.source(generate_data, name="GeneratedData").map(lambda tpl: (tpl["ID"], tpl["NAME"], tpl["AGE"]), schema=tuple_schema)
+        statement = db.JDBCStatement(credentials)
+        statement.sql = 'INSERT INTO SAMPLE_DEMO (ID, NAME, AGE) VALUES (? , ?, ?)'
+        statement.sql_params = 'ID, NAME, AGE'
+        sample_data.map(statement, name='INSERT')
+
+        self._build_only(name, topo)
 
 class TestParams(unittest.TestCase):
 
