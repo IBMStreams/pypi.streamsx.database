@@ -70,7 +70,7 @@ def configure_connection (instance, name = 'database', credentials = None):
         instance = Instance.of_service (cfg)
         app_cfg = configure_connection (instance, credentials = 'my_credentials_json')
 
-    In Cloud Pak for Data you can configure a connection to Db2 with `Connecting to data sources <https://docs-icpdata.mybluemix.net/docs/content/SSQNUZ_current/com.ibm.icpdata.doc/igc/t_connect_data_sources.html>`_
+    In Cloud Pak for Data you can configure a connection to Db2 with `Connecting to data sources <https://www.ibm.com/support/producthub/icpdata/docs/content/SSQNUZ_current/cpd/access/connect-data-sources.html>`_
     Example using this configured external connection with the name 'Db2-Cloud' to create an application configuration for IBM Streams::
 
         db_external_connection = icpd_util.get_connection('Db2-Cloud',conn_class='external')
@@ -183,7 +183,7 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
         res = db.run_statement(query, credentials=credentials, schema=sample_schema)
     
     Example for using configured external connection with the name 'Db2-Cloud' (Cloud Pak for Data only),
-    see `Connecting to data sources <https://docs-icpdata.mybluemix.net/docs/content/SSQNUZ_current/com.ibm.icpdata.doc/igc/t_connect_data_sources.html>`_::
+    see `Connecting to data sources <https://www.ibm.com/support/producthub/icpdata/docs/content/SSQNUZ_current/cpd/access/connect-data-sources.html>`_::
 
         db_external_connection = icpd_util.get_connection('Db2-Cloud',conn_class='external')
         res = db.run_statement(query, credentials=db_external_connection, schema=sample_schema)
@@ -291,28 +291,46 @@ class JDBCStatement(streamsx.topology.composite.Map):
     * Statement is part of the input stream. You can specify which input stream attribute contains the statement with :attr:`sql_attribute`. If input stream is of type ``CommonSchema.String``, then you don't need to specify the :attr:`sql_attribute` property.
     * Statement is given with the :attr:`sql` property. The statement can contain parameter markers that are set with input stream attributes specified by :attr:`sql_params`.
 
-    Example with "insert" statement and values passed with input stream, where the input stream "sample_stream" is of type "sample_schema"::
+    Example of a Streams application that inserts generated data into as rows in a table::
 
+        from streamsx.topology.topology import *
+        from streamsx.topology.schema import StreamSchema
+        from streamsx.topology.context import submit
         import streamsx.database as db
-        
-        sample_schema = StreamSchema('tuple<rstring A, rstring B>')
-        ...
-        stmt = db.JDBCStatement(credentials)
-        stmt.sql = 'INSERT INTO RUN_SAMPLE (A, B) VALUES (?, ?)'
-        stmt.sql_params = 'A, B'
-        inserts = sample_stream.map(stmt, schema=sample_schema)
+        import random
+        import time
 
-    Example with key value arguments::
+        # generates some data with schema (ID, NAME, AGE)
+        def generate_data():
+            counter = 0
+            while True:
+                #yield a random id, name and age
+                counter = counter +1 
+                yield  {"NAME": "Name_" + str(random.randint(0,500)), "ID": counter, "AGE": random.randint(10,99)}
+                time.sleep(0.10)
 
-        import streamsx.database as db
-        
-        sample_schema = StreamSchema('tuple<rstring A, rstring B>')
-        ...
+        topo = Topology()
+
+        tuple_schema = StreamSchema("tuple<int64 ID, rstring NAME, int32 AGE>")
+        # Generates data for a stream of three attributes. Each attribute maps to a column using the same name of the Db2 database table.
+        sample_data = topo.source(generate_data, name="GeneratedData").map(lambda tpl: (tpl["ID"], tpl["NAME"], tpl["AGE"]), schema=tuple_schema)
+
+        statement = db.JDBCStatement(credentials)
+        statement.sql = 'INSERT INTO SAMPLE_DEMO (ID, NAME, AGE) VALUES (? , ?, ?)'
+        statement.sql_params = 'ID, NAME, AGE'
+
+        sample_data.map(statement, name='INSERT')
+
+        # Use for IBM Streams including IBM Cloud Pak for Data
+        submit ('DISTRIBUTED', topo, cfg)
+
+    Example with key value arguments for the :attr:`options` parameter::
+
         config = {
-            'sql': 'INSERT INTO RUN_SAMPLE (A, B) VALUES (?, ?)',
-            'sql_params': 'A, B'
+            'sql': 'INSERT INTO SAMPLE_DEMO (ID, NAME, AGE) VALUES (? , ?, ?)'
+            'sql_params': 'ID, NAME, AGE'
         }
-        inserts = sample_stream.map(db.JDBCStatement(credentials, **config), schema=sample_schema)
+        inserts = sample_stream.map(db.JDBCStatement(credentials, **config))
 
     Example with "select count" statement and defined output schema with attribute ``TOTAL`` having the result of the query::
 
@@ -329,7 +347,7 @@ class JDBCStatement(streamsx.topology.composite.Map):
         res_sql.print()
 
     Example for using configured external connection with the name 'Db2-Cloud' (Cloud Pak for Data only),
-    see `Connecting to data sources <https://docs-icpdata.mybluemix.net/docs/content/SSQNUZ_current/com.ibm.icpdata.doc/igc/t_connect_data_sources.html>`_::
+    see `Connecting to data sources <https://www.ibm.com/support/producthub/icpdata/docs/content/SSQNUZ_current/cpd/access/connect-data-sources.html>`_::
 
         db_external_connection = icpd_util.get_connection('Db2-Cloud',conn_class='external')
         res = query.map(db.JDBCStatement(db_external_connection), schema=sample_schema)
@@ -340,7 +358,7 @@ class JDBCStatement(streamsx.topology.composite.Map):
     ----------
     credentials : dict|str
         The credentials of the IBM cloud Db2 warehouse service as dict or configured external connection of kind "Db2 Warehouse" (Cloud Pak for Data only) as dict or the name of the application configuration.
-    options : dict
+    options : kwargs
         The additional optional parameters as variable keyword arguments.
     """
 
