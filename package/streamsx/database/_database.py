@@ -61,20 +61,20 @@ def configure_connection (instance, name = 'database', credentials = None):
 
     Example for creating a configuration for a Streams instance with connection details::
 
-        from streamsx.rest import Instance
-        import streamsx.topology.context
         from icpd_core import icpd_util
+        from streamsx.rest_primitives import Instance
+        import streamsx.database as db
         
         cfg = icpd_util.get_service_instance_details (name='your-streams-instance')
         cfg[context.ConfigParams.SSL_VERIFY] = False
         instance = Instance.of_service (cfg)
-        app_cfg = configure_connection (instance, credentials = 'my_credentials_json')
+        app_cfg = db.configure_connection (instance, credentials = 'my_credentials_json')
 
     In Cloud Pak for Data you can configure a connection to Db2 with `Connecting to data sources <https://www.ibm.com/support/producthub/icpdata/docs/content/SSQNUZ_current/cpd/access/connect-data-sources.html>`_
     Example using this configured external connection with the name 'Db2-Cloud' to create an application configuration for IBM Streams::
 
         db_external_connection = icpd_util.get_connection('Db2-Cloud',conn_class='external')
-        app_cfg = configure_connection (instance, credentials = db_external_connection)
+        app_cfg = db.configure_connection (instance, credentials = db_external_connection)
 
 
     Args:
