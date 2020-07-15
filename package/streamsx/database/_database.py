@@ -249,7 +249,7 @@ def run_statement(stream, credentials, schema=None, sql=None, sql_attribute=None
    
     _op.params['jdbcClassName'] = jdbc_driver_class
     if jdbc_driver_lib is None:
-        _op.params['jdbcDriverLib'] = _add_driver_file_from_url(stream.topology, 'https://github.com/IBMStreams/streamsx.jdbc/raw/master/samples/JDBCSample/opt/db2jcc4.jar', 'db2jcc4.jar')
+        _op.params['jdbcDriverLib'] = _add_driver_file_from_url(stream.topology, 'https://github.com/IBMStreams/streamsx.jdbc/raw/develop/samples/JDBCSample/opt/db2jcc4.jar', 'db2jcc4.jar')
     else:
         _op.params['jdbcDriverLib'] = _add_driver_file(stream.topology, jdbc_driver_lib)
 
@@ -648,7 +648,7 @@ class JDBCStatement(streamsx.topology.composite.Map):
         # JDBC driver settings
         _op.params['jdbcClassName'] = self.jdbc_driver_class
         if self.jdbc_driver_lib is None:
-            _op.params['jdbcDriverLib'] = _add_driver_file_from_url(stream.topology, 'https://github.com/IBMStreams/streamsx.jdbc/raw/master/samples/JDBCSample/opt/db2jcc4.jar', 'db2jcc4.jar')
+            _op.params['jdbcDriverLib'] = _add_driver_file_from_url(stream.topology, 'https://github.com/IBMStreams/streamsx.jdbc/raw/develop/samples/JDBCSample/opt/db2jcc4.jar', 'db2jcc4.jar')
         else:
             _op.params['jdbcDriverLib'] = _add_driver_file(stream.topology, self.jdbc_driver_lib)
 
