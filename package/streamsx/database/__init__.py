@@ -25,7 +25,7 @@ The mandatory JSON elements are "username", "password" and "jdbcurl"::
 
 """
 
-__version__='1.5.6'
+__version__='1.5.7'
 
 __all__ = ['JDBCStatement', 'download_toolkit', 'configure_connection', 'run_statement']
 from streamsx.database._database import JDBCStatement, download_toolkit, configure_connection, run_statement
