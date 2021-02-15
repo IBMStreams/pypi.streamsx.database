@@ -382,6 +382,9 @@ class JDBCStatement(streamsx.topology.composite.Map):
         self.keystore_type=None
         self.plugin_name=None
         self.security_mechanism=None
+        self.commit_on_punct=None
+        self.batch_on_punct=None
+        self.batch_size=None
         if 'vm_arg' in options:
             self.vm_arg = options.get('vm_arg')
         if 'jdbc_driver_class' in options:
@@ -414,8 +417,13 @@ class JDBCStatement(streamsx.topology.composite.Map):
             self.plugin_name = options.get('plugin_name')
         if 'security_mechanism' in options:
             self.security_mechanism = options.get('security_mechanism')
+        if 'commit_on_punct' in options:
+            self.commit_on_punct = options.get('commit_on_punct')
+        if 'batch_on_punct' in options:
+            self.batch_on_punct = options.get('batch_on_punct')
+        if 'batch_size' in options:
+            self.batch_size = options.get('batch_size')
 
-        
     @property
     def vm_arg(self):
         """
@@ -612,6 +620,38 @@ class JDBCStatement(streamsx.topology.composite.Map):
     def sql_params(self, value):
         self._sql_params = value
 
+    @property
+    def commit_on_punct(self):
+        """
+            bool:  Set to true, when commit shall be done on window punctuation marker.
+        """
+        return self._commit_on_punct
+
+    @commit_on_punct.setter
+    def commit_on_punct(self, value):
+        self._commit_on_punct = value
+
+    @property
+    def batch_on_punct(self):
+        """
+            bool:  Set to true, when execute the batch on window punctuation marker.
+        """
+        return self._batch_on_punct
+
+    @batch_on_punct.setter
+    def batch_on_punct(self, value):
+        self._batch_on_punct = value
+
+    @property
+    def batch_size(self):
+        """
+            int:  Number of statements transmitted in a batch.
+        """
+        return self._batch_size
+
+    @batch_size.setter
+    def batch_size(self, value):
+        self._batch_size = value
 
     def populate(self, topology, stream, schema, name, **options):
 
@@ -636,7 +676,7 @@ class JDBCStatement(streamsx.topology.composite.Map):
             password=None
             app_config_name = self.credentials
 
-        _op = _JDBCRun(stream=stream, schema=schema, appConfigName=app_config_name, jdbcUrl=jdbcurl, jdbcUser=username, jdbcPassword=password, transactionSize=self.transaction_size, vmArg=self.vm_arg, name=name)
+        _op = _JDBCRun(stream=stream, schema=schema, appConfigName=app_config_name, jdbcUrl=jdbcurl, jdbcUser=username, jdbcPassword=password, transactionSize=self.transaction_size, commitOnPunct=self.commit_on_punct, batchOnPunct=self.batch_on_punct, batchSize=self.batch_size, vmArg=self.vm_arg, name=name)
 
         if self.sql_attribute is not None:
             _op.params['statementAttr'] = _op.attribute(stream, self.sql_attribute)
@@ -677,7 +717,7 @@ class JDBCStatement(streamsx.topology.composite.Map):
 
 
 class _JDBCRun(streamsx.spl.op.Invoke):
-    def __init__(self, stream, schema=None, appConfigName=None, jdbcClassName=None, jdbcDriverLib=None, jdbcUrl=None, batchSize=None, checkConnection=None, commitInterval=None, commitPolicy=None, hasResultSetAttr=None, isolationLevel=None, jdbcPassword=None, jdbcProperties=None, jdbcUser=None, keyStore=None, keyStorePassword=None, keyStoreType=None, trustStoreType=None, securityMechanism=None, pluginName=None, reconnectionBound=None, reconnectionInterval=None, reconnectionPolicy=None, sqlFailureAction=None, sqlStatusAttr=None, sslConnection=None, statement=None, statementAttr=None, statementParamAttrs=None, transactionSize=None, trustStore=None, trustStorePassword=None, vmArg=None, name=None):
+    def __init__(self, stream, schema=None, appConfigName=None, jdbcClassName=None, jdbcDriverLib=None, jdbcUrl=None, batchSize=None, batchOnPunct=None, checkConnection=None, commitInterval=None, commitOnPunct=None, commitPolicy=None, hasResultSetAttr=None, isolationLevel=None, jdbcPassword=None, jdbcProperties=None, jdbcUser=None, keyStore=None, keyStorePassword=None, keyStoreType=None, trustStoreType=None, securityMechanism=None, pluginName=None, reconnectionBound=None, reconnectionInterval=None, reconnectionPolicy=None, sqlFailureAction=None, sqlStatusAttr=None, sslConnection=None, statement=None, statementAttr=None, statementParamAttrs=None, transactionSize=None, trustStore=None, trustStorePassword=None, vmArg=None, name=None):
         topology = stream.topology
         kind="com.ibm.streamsx.jdbc::JDBCRun"
         inputs=stream
@@ -695,10 +735,14 @@ class _JDBCRun(streamsx.spl.op.Invoke):
             params['jdbcUrl'] = jdbcUrl
         if batchSize is not None:
             params['batchSize'] = batchSize
+        if batchOnPunct is not None:
+            params['batchOnPunct'] = batchOnPunct
         if checkConnection is not None:
             params['checkConnection'] = checkConnection
         if commitInterval is not None:
             params['commitInterval'] = commitInterval
+        if commitOnPunct is not None:
+            params['commitOnPunct'] = commitOnPunct
         if commitPolicy is not None:
             params['commitPolicy'] = commitPolicy
         if hasResultSetAttr is not None:
