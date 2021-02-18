@@ -259,7 +259,7 @@ class TestCommit(unittest.TestCase):
         stmt.sql_params = 'A,B'
         stmt.batch_on_punct = True
         res_sql = s.map(stmt, schema=sample_schema)
-        res_sql.print()
+        res_sql.print(write_punctuations=True)
 
         self._build_only(name, topo)
 
