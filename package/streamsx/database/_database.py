@@ -12,6 +12,7 @@ import streamsx.spl.types
 from streamsx.topology.schema import CommonSchema, StreamSchema
 from streamsx.spl.types import rstring
 from streamsx.toolkits import download_toolkit
+from streamsx.spl import toolkit
 import streamsx.topology.composite
 
 
@@ -624,6 +625,9 @@ class JDBCStatement(streamsx.topology.composite.Map):
     def commit_on_punct(self):
         """
             bool:  Set to true, when commit shall be done on window punctuation marker.
+
+            .. versionadded:: 1.6
+
         """
         return self._commit_on_punct
 
@@ -635,6 +639,8 @@ class JDBCStatement(streamsx.topology.composite.Map):
     def batch_on_punct(self):
         """
             bool:  Set to true, when execute the batch on window punctuation marker.
+
+            .. versionadded:: 1.6
         """
         return self._batch_on_punct
 
@@ -646,6 +652,8 @@ class JDBCStatement(streamsx.topology.composite.Map):
     def batch_size(self):
         """
             int:  Number of statements transmitted in a batch.
+
+            .. versionadded:: 1.6
         """
         return self._batch_size
 
@@ -675,6 +683,9 @@ class JDBCStatement(streamsx.topology.composite.Map):
             username=None
             password=None
             app_config_name = self.credentials
+
+        if self.commit_on_punct is not None or self.batch_on_punct is not None: # Parameters haven been introduced in toolkit version 1.9.0
+            toolkit.add_toolkit_dependency(topology, 'com.ibm.streamsx.jdbc', '[1.9.0,3.0.0)')
 
         _op = _JDBCRun(stream=stream, schema=schema, appConfigName=app_config_name, jdbcUrl=jdbcurl, jdbcUser=username, jdbcPassword=password, transactionSize=self.transaction_size, commitOnPunct=self.commit_on_punct, batchOnPunct=self.batch_on_punct, batchSize=self.batch_size, vmArg=self.vm_arg, name=name)
 
